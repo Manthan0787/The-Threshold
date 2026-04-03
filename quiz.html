@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Survival Quiz — THE THRESHOLD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-dark': '#04070F',
+                        'secondary-dark': '#0A0E1A',
+                        'surface-dark': '#141B2D',
+                        'neon-cyan': '#00E5FF',
+                        'neon-red': '#FF3D71',
+                        'neon-amber': '#FFB800',
+                        'text-primary': '#E8EDF4',
+                        'text-secondary': '#8A96A8',
+                    },
+                    fontFamily: {
+                        'heading': ['Orbitron', 'sans-serif'],
+                        'body': ['Inter', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --cyan: #00E5FF; --red: #FF3D71; --amber: #FFB800; }
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body { overflow-x: hidden; }
+
+        /* Scanlines */
+        body::after {
+            content:''; position:fixed; inset:0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,229,255,0.012) 3px, rgba(0,229,255,0.012) 4px);
+            pointer-events:none; z-index:9998;
+        }
+
+        /* Light mode */
+        body.light-mode {
+            --cyan: #007ACC;
+            --red: #CC2B50;
+            --amber: #CC8800;
+            background-color: #F0F4FF !important;
+            color: #0A0E1A !important;
+        }
+        body.light-mode .bg-primary-dark { background-color: #E8EDF8 !important; }
+        body.light-mode .bg-secondary-dark { background-color: #D8E2F5 !important; }
+        body.light-mode .bg-surface-dark { background-color: #C8D4EE !important; }
+        body.light-mode .text-text-primary { color: #0A0E1A !important; }
+        body.light-mode .text-text-secondary { color: #2A3A5A !important; }
+        body.light-mode nav { background-color: rgba(232,237,248,0.95) !important; border-color: rgba(0,122,204,0.3) !important; }
+        body.light-mode .quiz-option { background: #C8D4EE !important; border-color: #9AAAD0 !important; color: #0A0E1A !important; }
+        body.light-mode .quiz-option:hover:not(.locked) { border-color: var(--cyan) !important; }
+        body.light-mode .timer-box { background: #C8D4EE !important; border-color: #9AAAD0 !important; }
+        body.light-mode .question-card { background: #D8E2F5 !important; border-color: #9AAAD0 !important; }
+        body.light-mode .progress-track { background: #9AAAD0 !important; }
+        body.light-mode #result-card { background: #D8E2F5 !important; border-color: var(--cyan) !important; }
+
+        /* Neon glow */
+        .neon-glow { animation: neonPulse 2.5s ease-in-out infinite; }
+        @keyframes neonPulse { 0%,100%{text-shadow:0 0 5px var(--cyan),0 0 20px var(--cyan)} 50%{text-shadow:0 0 10px var(--cyan),0 0 40px var(--cyan),0 0 80px var(--cyan)} }
+
+        /* Shimmer */
+        .shimmer { background:linear-gradient(90deg,var(--cyan) 0%,var(--amber) 25%,var(--red) 50%,var(--amber) 75%,var(--cyan) 100%); background-size:200% auto; -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; animation:shimmer 3s linear infinite; }
+        @keyframes shimmer { to { background-position:200% center; } }
+
+        /* Hex BG */
+        .hex-bg { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='115'%3E%3Cpolygon points='50,5 95,27.5 95,72.5 50,95 5,72.5 5,27.5' fill='none' stroke='%2300E5FF' stroke-width='0.4' opacity='0.07'/%3E%3C/svg%3E"); }
+
+        /* Ripple */
+        .btn-ripple { position:relative; overflow:hidden; }
+        .ripple { position:absolute; border-radius:50%; background:rgba(255,255,255,0.4); transform:scale(0); animation:rippleAnim 0.7s ease-out; pointer-events:none; }
+        @keyframes rippleAnim { to{transform:scale(4);opacity:0} }
+
+        /* Countdown Timer */
+        #quiz-timer-display {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: var(--cyan);
+            text-shadow: 0 0 20px var(--cyan);
+            letter-spacing: 4px;
+            transition: color 0.3s, text-shadow 0.3s;
+        }
+        #quiz-timer-display.warning {
+            color: var(--amber);
+            text-shadow: 0 0 20px var(--amber);
+            animation: timerPulse 0.5s ease-in-out infinite;
+        }
+        #quiz-timer-display.danger {
+            color: var(--red);
+            text-shadow: 0 0 20px var(--red);
+            animation: timerPulse 0.3s ease-in-out infinite;
+        }
+        @keyframes timerPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+
+        .timer-box {
+            background: #141B2D;
+            border: 2px solid rgba(0,229,255,0.3);
+            border-radius: 16px;
+            padding: 20px 32px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .timer-box::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: radial-gradient(ellipse at center, rgba(0,229,255,0.05) 0%, transparent 70%);
+        }
+
+        /* Progress bar */
+        .progress-track { background: #141B2D; border-radius: 99px; height: 8px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--cyan), var(--amber)); transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
+
+        /* Question card */
+        .question-card {
+            background: #0A0E1A;
+            border: 2px solid #141B2D;
+            border-radius: 16px;
+            padding: 36px;
+            animation: slideInUp 0.4s ease;
+        }
+        @keyframes slideInUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+
+        /* Quiz option buttons */
+        .quiz-option {
+            width: 100%;
+            background: #141B2D;
+            border: 2px solid #1E2A3D;
+            border-radius: 12px;
+            padding: 16px 20px;
+            text-align: left;
+            color: #E8EDF4;
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .quiz-option:hover:not(.locked) {
+            border-color: var(--cyan);
+            background: rgba(0,229,255,0.06);
+            transform: translateX(6px);
+            box-shadow: 0 0 20px rgba(0,229,255,0.1);
+        }
+        .quiz-option .opt-letter {
+            min-width: 32px; height: 32px;
+            border: 2px solid #2A3A5A;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px; font-weight: 700;
+            color: #8A96A8;
+            transition: all 0.25s;
+            flex-shrink: 0;
+        }
+        .quiz-option:hover:not(.locked) .opt-letter {
+            border-color: var(--cyan);
+            color: var(--cyan);
+        }
+        .quiz-option.selected {
+            border-color: var(--cyan);
+            background: rgba(0,229,255,0.08);
+        }
+        .quiz-option.selected .opt-letter {
+            background: var(--cyan);
+            border-color: var(--cyan);
+            color: #04070F;
+        }
+        .quiz-option.correct {
+            border-color: #00FF88;
+            background: rgba(0,255,136,0.08);
+            animation: correctFlash 0.5s ease;
+        }
+        .quiz-option.correct .opt-letter {
+            background: #00FF88;
+            border-color: #00FF88;
+            color: #04070F;
+        }
+        .quiz-option.wrong {
+            border-color: var(--red);
+            background: rgba(255,61,113,0.08);
+            animation: wrongShake 0.4s ease;
+        }
+        .quiz-option.wrong .opt-letter {
+            background: var(--red);
+            border-color: var(--red);
+            color: #fff;
+        }
+        .quiz-option.locked { cursor: default; }
+        @keyframes correctFlash { 0%,100%{transform:translateX(0)} 25%{transform:translateX(4px)} 75%{transform:translateX(-2px)} }
+        @keyframes wrongShake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)} }
+
+        /* Feedback badge */
+        .feedback-badge {
+            display: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-align: center;
+            animation: fadeInScale 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+        }
+        .feedback-badge.show { display: block; }
+        .feedback-badge.correct { background: rgba(0,255,136,0.15); border: 2px solid #00FF88; color: #00FF88; }
+        .feedback-badge.wrong { background: rgba(255,61,113,0.15); border: 2px solid var(--red); color: var(--red); }
+        .feedback-badge.timeout { background: rgba(255,184,0,0.15); border: 2px solid var(--amber); color: var(--amber); }
+        @keyframes fadeInScale { from{opacity:0;transform:scale(0.8)} to{opacity:1;transform:scale(1)} }
+
+        /* Result card */
+        #result-card {
+            background: #0A0E1A;
+            border: 2px solid var(--cyan);
+            border-radius: 20px;
+            box-shadow: 0 0 60px rgba(0,229,255,0.2), inset 0 0 30px rgba(0,229,255,0.03);
+            animation: resultPop 0.6s cubic-bezier(0.175,0.885,0.32,1.275);
+        }
+        @keyframes resultPop { from{opacity:0;transform:scale(0.7) translateY(40px)} to{opacity:1;transform:scale(1) translateY(0)} }
+
+        .score-ring {
+            width: 160px; height: 160px;
+            border-radius: 50%;
+            border: 6px solid #141B2D;
+            display: flex; align-items: center; justify-content: center;
+            position: relative;
+            margin: 0 auto;
+        }
+        .score-ring-fill {
+            position: absolute; inset: 0; border-radius: 50%;
+            border: 6px solid transparent;
+            border-top-color: var(--cyan);
+            border-right-color: var(--cyan);
+            transition: all 0.1s;
+        }
+        .rank-badge {
+            display: inline-block;
+            padding: 8px 24px;
+            border-radius: 99px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Question indicator dots */
+        .q-dot {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: #1E2A3D;
+            transition: all 0.3s;
+            flex-shrink: 0;
+        }
+        .q-dot.current { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); transform: scale(1.3); }
+        .q-dot.answered-correct { background: #00FF88; }
+        .q-dot.answered-wrong { background: var(--red); }
+        .q-dot.answered-timeout { background: var(--amber); }
+
+        /* Theme toggle */
+        .theme-toggle {
+            width: 52px; height: 28px;
+            border-radius: 99px;
+            background: #141B2D;
+            border: 2px solid var(--cyan);
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+            flex-shrink: 0;
+        }
+        .theme-toggle-knob {
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            background: var(--cyan);
+            position: absolute;
+            top: 3px; left: 3px;
+            transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+            box-shadow: 0 0 8px var(--cyan);
+        }
+        body.light-mode .theme-toggle { background: var(--cyan); }
+        body.light-mode .theme-toggle-knob { transform: translateX(24px); background: #04070F; }
+
+        /* Score history bar */
+        .history-bar {
+            height: 6px; border-radius: 3px;
+            background: var(--cyan);
+            transition: width 1s ease;
+        }
+
+        ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:#04070F} ::-webkit-scrollbar-thumb{background:var(--cyan);border-radius:3px}
+    </style>
+</head>
+<body class="bg-primary-dark text-text-primary font-body antialiased min-h-screen">
+
+<!-- NAV -->
+<nav class="fixed top-0 left-0 right-0 z-50 border-b border-surface-dark" style="background:rgba(4,7,15,0.95);backdrop-filter:blur(20px);">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+            <a href="index.html" class="font-heading font-black text-neon-cyan text-lg neon-glow">THE THRESHOLD</a>
+            <div class="flex items-center gap-4 sm:gap-6">
+                <a href="index.html" class="text-text-secondary hover:text-neon-cyan transition-colors text-sm font-mono hidden sm:block">← Home</a>
+                <a href="register.html" class="text-text-secondary hover:text-neon-cyan transition-colors text-sm font-mono hidden sm:block">Register</a>
+                <!-- Theme Toggle -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-text-secondary font-mono hidden sm:block" id="theme-label">🌙 DARK</span>
+                    <div class="theme-toggle" id="theme-toggle" title="Toggle theme">
+                        <div class="theme-toggle-knob" id="toggle-knob"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<main class="pt-20 pb-16 hex-bg min-h-screen">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
+
+        <!-- HEADER -->
+        <div class="text-center mb-10 pt-8">
+            <p class="text-neon-cyan font-mono text-xs tracking-widest uppercase mb-3">// Survival Assessment Protocol</p>
+            <h1 class="text-4xl sm:text-5xl font-heading font-black shimmer mb-4">THRESHOLD QUIZ</h1>
+            <p class="text-text-secondary max-w-lg mx-auto">Test your survival instincts. Every second counts. One wrong move and the simulation terminates.</p>
+        </div>
+
+        <!-- TIMER + PROGRESS ROW -->
+        <div class="flex flex-col sm:flex-row gap-4 mb-6 items-stretch" id="timer-section">
+            <!-- Timer -->
+            <div class="timer-box flex-shrink-0 flex flex-col items-center justify-center min-w-[180px]">
+                <p class="font-mono text-xs text-text-secondary uppercase tracking-widest mb-1">Time Remaining</p>
+                <div id="quiz-timer-display">02:00</div>
+                <p class="font-mono text-xs text-text-secondary mt-1 tracking-widest">PER QUESTION</p>
+            </div>
+            <!-- Stats -->
+            <div class="flex-1 bg-secondary-dark rounded-2xl border border-surface-dark p-5 flex flex-col justify-between gap-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-mono text-xs text-text-secondary uppercase tracking-widest">Question</p>
+                        <p class="font-heading font-bold text-2xl text-neon-cyan"><span id="current-q-num">1</span> <span class="text-text-secondary text-base font-body font-normal">/ <span id="total-q-num">10</span></span></p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-mono text-xs text-text-secondary uppercase tracking-widest">Score</p>
+                        <p class="font-heading font-bold text-2xl text-neon-amber"><span id="live-score">0</span></p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-mono text-xs text-text-secondary uppercase tracking-widest">Streak</p>
+                        <p class="font-heading font-bold text-2xl text-neon-red">🔥 <span id="live-streak">0</span></p>
+                    </div>
+                </div>
+                <!-- Progress -->
+                <div>
+                    <div class="progress-track">
+                        <div class="progress-fill" id="q-progress-fill" style="width:0%"></div>
+                    </div>
+                    <!-- Dots -->
+                    <div class="flex gap-1.5 mt-3 flex-wrap" id="q-dots"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- QUIZ AREA -->
+        <div id="quiz-area">
+            <!-- START SCREEN -->
+            <div id="start-screen" class="question-card text-center">
+                <div class="text-6xl mb-6">⚠️</div>
+                <h2 class="text-2xl font-heading font-bold text-neon-cyan mb-4">MISSION BRIEFING</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 text-left">
+                    <div class="bg-surface-dark rounded-xl p-4 border border-surface-dark hover:border-neon-cyan transition-all">
+                        <p class="text-neon-cyan font-mono text-xs uppercase tracking-widest mb-1">Questions</p>
+                        <p class="text-2xl font-heading font-black">10</p>
+                    </div>
+                    <div class="bg-surface-dark rounded-xl p-4 border border-surface-dark hover:border-neon-amber transition-all">
+                        <p class="text-neon-amber font-mono text-xs uppercase tracking-widest mb-1">Time / Q</p>
+                        <p class="text-2xl font-heading font-black">2:00</p>
+                    </div>
+                    <div class="bg-surface-dark rounded-xl p-4 border border-surface-dark hover:border-neon-red transition-all">
+                        <p class="text-neon-red font-mono text-xs uppercase tracking-widest mb-1">Max Score</p>
+                        <p class="text-2xl font-heading font-black">1000</p>
+                    </div>
+                </div>
+                <p class="text-text-secondary mb-8 max-w-md mx-auto text-sm">Survive 10 questions across survival strategy, game theory, and Threshold lore. Faster answers earn bonus points. Good luck, agent.</p>
+                <button class="btn-ripple px-12 py-4 bg-neon-cyan text-primary-dark font-heading font-bold text-sm rounded-xl hover:bg-neon-amber hover:scale-105 transition-all tracking-widest" id="start-btn" onclick="startQuiz()">
+                    INITIATE QUIZ
+                </button>
+            </div>
+
+            <!-- QUESTION SCREEN (hidden initially) -->
+            <div id="question-screen" class="hidden">
+                <!-- Category tag -->
+                <div class="flex items-center justify-between mb-4">
+                    <span class="px-3 py-1 bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 rounded-full font-mono text-xs uppercase tracking-widest" id="q-category">Category</span>
+                    <span class="px-3 py-1 bg-surface-dark text-text-secondary border border-surface-dark rounded-full font-mono text-xs" id="q-difficulty">Medium</span>
+                </div>
+                <div class="question-card mb-4">
+                    <p class="text-text-secondary font-mono text-xs uppercase tracking-widest mb-3">[ QUESTION <span id="q-num-label">01</span> ]</p>
+                    <h2 class="text-xl sm:text-2xl font-bold text-text-primary leading-relaxed mb-8" id="question-text">Loading...</h2>
+                    <div class="flex flex-col gap-3" id="options-container"></div>
+                </div>
+                <!-- Feedback -->
+                <div id="feedback-badge" class="feedback-badge mb-4"></div>
+                <!-- Explanation -->
+                <div id="explanation-box" class="hidden bg-surface-dark border border-neon-cyan/20 rounded-xl p-4 mb-4">
+                    <p class="font-mono text-xs text-neon-cyan uppercase tracking-widest mb-2">// Tactical Analysis</p>
+                    <p class="text-text-secondary text-sm leading-relaxed" id="explanation-text"></p>
+                </div>
+                <!-- Next -->
+                <div class="flex justify-end">
+                    <button class="btn-ripple px-8 py-3.5 bg-neon-cyan text-primary-dark font-heading font-bold text-sm rounded-xl hover:bg-neon-amber transition-all tracking-widest hidden" id="next-btn" onclick="nextQuestion()">
+                        NEXT QUESTION →
+                    </button>
+                </div>
+            </div>
+
+            <!-- RESULT SCREEN (hidden initially) -->
+            <div id="result-screen" class="hidden">
+                <div id="result-card" class="p-8 sm:p-12 text-center">
+                    <p class="font-mono text-xs text-neon-cyan uppercase tracking-widest mb-4">// Assessment Complete</p>
+                    <div class="score-ring mb-6">
+                        <div class="score-ring-fill" id="score-ring-fill"></div>
+                        <div>
+                            <p class="font-heading font-black text-3xl text-neon-cyan" id="final-score-display">0</p>
+                            <p class="font-mono text-xs text-text-secondary">/ 1000</p>
+                        </div>
+                    </div>
+                    <div class="rank-badge mb-4" id="rank-badge">SURVIVOR</div>
+                    <h2 class="text-3xl sm:text-4xl font-heading font-black text-text-primary mb-2" id="result-title">MISSION COMPLETE</h2>
+                    <p class="text-text-secondary mb-8" id="result-subtitle">You've survived the Threshold assessment.</p>
+
+                    <!-- Stats grid -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+                        <div class="bg-surface-dark rounded-xl p-4 border border-surface-dark">
+                            <p class="font-mono text-xs text-neon-cyan uppercase tracking-widest mb-1">Correct</p>
+                            <p class="text-2xl font-heading font-black text-neon-cyan" id="stat-correct">0</p>
+                        </div>
+                        <div class="bg-surface-dark rounded-xl p-4 border border-surface-dark">
+                            <p class="font-mono text-xs text-neon-red uppercase tracking-widest mb-1">Wrong</p>
+                            <p class="text-2xl font-heading font-black text-neon-red" id="stat-wrong">0</p>
+                        </div>
+                        <div class="bg-surface-dark rounded-xl p-4 border border-surface-dark">
+                            <p class="font-mono text-xs text-neon-amber uppercase tracking-widest mb-1">Timeouts</p>
+                            <p class="text-2xl font-heading font-black text-neon-amber" id="stat-timeout">0</p>
+                        </div>
+                        <div class="bg-surface-dark rounded-xl p-4 border border-surface-dark">
+                            <p class="font-mono text-xs text-text-secondary uppercase tracking-widest mb-1">Best Streak</p>
+                            <p class="text-2xl font-heading font-black" id="stat-streak">0</p>
+                        </div>
+                    </div>
+
+                    <!-- Answer breakdown -->
+                    <div class="text-left mb-8">
+                        <p class="font-mono text-xs text-neon-cyan uppercase tracking-widest mb-4">// Answer Breakdown</p>
+                        <div class="space-y-3" id="breakdown-list"></div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                        <button class="btn-ripple px-8 py-4 bg-neon-cyan text-primary-dark font-heading font-bold text-sm rounded-xl hover:bg-neon-amber transition-all tracking-widest" onclick="restartQuiz()">
+                            🔄 RETRY MISSION
+                        </button>
+                        <a href="index.html" class="btn-ripple inline-block px-8 py-4 border-2 border-neon-cyan text-neon-cyan font-heading font-bold text-sm rounded-xl hover:bg-neon-cyan hover:text-primary-dark transition-all tracking-widest">
+                            ← RETURN TO BASE
+                        </a>
+                        <a href="register.html" class="btn-ripple inline-block px-8 py-4 border-2 border-neon-amber text-neon-amber font-heading font-bold text-sm rounded-xl hover:bg-neon-amber hover:text-primary-dark transition-all tracking-widest">
+                            REGISTER NOW →
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<script>
+// ===== QUIZ DATA =====
+const questions = [
+    {
+        q: "In a survival scenario, resources are running low for a 4-person team. What is the most strategically sound approach?",
+        opts: [
+            "Each person acts independently to maximize their own survival",
+            "Collectively audit resources, assign roles, and ration supplies based on task priority",
+            "The strongest member takes control of all resources",
+            "Randomly distribute resources so no one feels unfavored"
+        ],
+        correct: 1,
+        category: "STRATEGY",
+        difficulty: "Medium",
+        explanation: "Resource auditing and role-based rationing maximizes team efficiency. Collective planning outperforms individual or authoritarian approaches in sustained survival scenarios."
+    },
+    {
+        q: "During 'Blackout Protocol', all electronic devices are disabled. What is your FIRST priority?",
+        opts: [
+            "Find a power source immediately",
+            "Panic and call for help",
+            "Establish a communication method with your team using pre-agreed signals",
+            "Wait for organizers to restore power"
+        ],
+        correct: 2,
+        category: "BLACKOUT",
+        difficulty: "Easy",
+        explanation: "Pre-agreed non-electronic signals (hand signs, whistles, patterns) are the backbone of communication when technology fails. Establishing this first prevents team fragmentation."
+    },
+    {
+        q: "The 'Cryogenic Escape' challenge involves extreme cold. Hypothermia sets in below which core body temperature?",
+        opts: [
+            "37°C (98.6°F)",
+            "35°C (95°F)",
+            "32°C (89.6°F)",
+            "28°C (82.4°F)"
+        ],
+        correct: 1,
+        category: "CRYOGENIC",
+        difficulty: "Hard",
+        explanation: "Hypothermia is medically defined as a core body temperature below 35°C (95°F). At this point, the body loses its ability to generate enough heat to sustain normal functions."
+    },
+    {
+        q: "In game theory, what is a 'Nash Equilibrium'?",
+        opts: [
+            "The optimal outcome for all players combined",
+            "A state where no player benefits by changing their strategy unilaterally",
+            "The point where the strongest player wins",
+            "A tie between two equally matched opponents"
+        ],
+        correct: 1,
+        category: "THEORY",
+        difficulty: "Hard",
+        explanation: "Nash Equilibrium is a concept where each player's strategy is optimal given the strategies of all other players. Understanding this is crucial in multi-team survival competitions."
+    },
+    {
+        q: "Your team reaches a 'Fracture Zone' pressure point. Two paths exist: Path A is faster but risky, Path B is slower but safe. With 20 minutes left, which do you choose?",
+        opts: [
+            "Always Path B — safety first",
+            "Always Path A — speed is everything",
+            "Assess the risk-reward ratio based on remaining time and team condition",
+            "Split the team: half on each path"
+        ],
+        correct: 2,
+        category: "FRACTURE",
+        difficulty: "Medium",
+        explanation: "Dynamic decision-making requires assessing risk vs reward in context. With 20 minutes left, your team's fatigue level, injury status, and point gap determine which path is optimal."
+    },
+    {
+        q: "The 'Pressure Drop' challenge simulates deep-sea pressure environments. Which human sense is MOST impaired underwater?",
+        opts: [
+            "Touch",
+            "Smell",
+            "Hearing",
+            "Vision"
+        ],
+        correct: 3,
+        category: "PRESSURE",
+        difficulty: "Medium",
+        explanation: "Vision is most impaired underwater due to refraction differences. The eye's cornea is designed to work with air; in water, objects appear blurry and 25% closer than they actually are."
+    },
+    {
+        q: "A teammate is showing signs of panic during a critical challenge phase. What is the BEST immediate action?",
+        opts: [
+            "Tell them to stop panicking",
+            "Ignore them and focus on the challenge",
+            "Use calm, directive communication: give them a simple, specific task",
+            "Replace them with another team member immediately"
+        ],
+        correct: 2,
+        category: "STRATEGY",
+        difficulty: "Medium",
+        explanation: "Under acute stress, the brain responds better to simple, concrete directives than abstract reassurance. Giving a panicking teammate a specific small task activates their problem-solving mode."
+    },
+    {
+        q: "THE THRESHOLD competition was created for students aged:",
+        opts: [
+            "14 and above",
+            "16 and above",
+            "18 and above",
+            "Any age"
+        ],
+        correct: 2,
+        category: "LORE",
+        difficulty: "Easy",
+        explanation: "THE THRESHOLD is an 18+ competition, as indicated on the main registration page and challenge rules. This ensures all participants can legally compete and consent to physical challenge elements."
+    },
+    {
+        q: "What is the total prize pool for THE THRESHOLD 2026?",
+        opts: [
+            "$1,000",
+            "$5,000",
+            "$10,000",
+            "$25,000"
+        ],
+        correct: 2,
+        category: "LORE",
+        difficulty: "Easy",
+        explanation: "The prize pool for THE THRESHOLD 2026 is $10,000, split among winning teams based on final rankings across all four challenge categories."
+    },
+    {
+        q: "In a survival competition, which leadership style typically leads to the BEST team outcomes under high-stress time constraints?",
+        opts: [
+            "Autocratic — one person makes all decisions instantly",
+            "Democratic — every decision is voted on",
+            "Laissez-faire — everyone does what they feel is best",
+            "Adaptive — leadership shifts based on who has the most relevant expertise per task"
+        ],
+        correct: 3,
+        category: "STRATEGY",
+        difficulty: "Hard",
+        explanation: "Adaptive leadership, where authority fluidly shifts to the most competent team member for the current task, consistently outperforms rigid structures in high-stakes, multi-domain survival scenarios."
+    }
+];
+
+// ===== STATE =====
+let currentQuestion = 0;
+let score = 0;
+let streak = 0;
+let bestStreak = 0;
+let timerInterval = null;
+let timeLeft = 120; // 2 minutes per question
+let answered = false;
+let results = []; // {correct, timeout}
+let quizStarted = false;
+
+// ===== THEME TOGGLE =====
+const themeToggle = document.getElementById('theme-toggle');
+const themeLabel = document.getElementById('theme-label');
+let darkMode = true;
+themeToggle.addEventListener('click', () => {
+    darkMode = !darkMode;
+    document.body.classList.toggle('light-mode', !darkMode);
+    themeLabel.textContent = darkMode ? '🌙 DARK' : '☀️ LIGHT';
+});
+
+// Ripple effect
+document.querySelectorAll('.btn-ripple').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        const ripple = document.createElement('span');
+        const rect = this.getBoundingClientRect();
+        ripple.className = 'ripple';
+        ripple.style.cssText = `width:${Math.max(rect.width,rect.height)*2}px;height:${Math.max(rect.width,rect.height)*2}px;left:${e.clientX-rect.left-Math.max(rect.width,rect.height)}px;top:${e.clientY-rect.top-Math.max(rect.width,rect.height)}px;`;
+        this.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 700);
+    });
+});
+
+// ===== INIT DOTS =====
+function initDots() {
+    const container = document.getElementById('q-dots');
+    container.innerHTML = '';
+    questions.forEach((_, i) => {
+        const dot = document.createElement('div');
+        dot.className = 'q-dot' + (i === 0 ? ' current' : '');
+        dot.id = `qdot-${i}`;
+        container.appendChild(dot);
+    });
+    document.getElementById('total-q-num').textContent = questions.length;
+}
+
+// ===== TIMER =====
+function startTimer() {
+    timeLeft = 120;
+    updateTimerDisplay();
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        timeLeft--;
+        updateTimerDisplay();
+        if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            handleTimeout();
+        }
+    }, 1000);
+}
+
+function updateTimerDisplay() {
+    const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+    const secs = String(timeLeft % 60).padStart(2, '0');
+    const display = document.getElementById('quiz-timer-display');
+    display.textContent = `${mins}:${secs}`;
+    display.classList.remove('warning', 'danger');
+    if (timeLeft <= 10) display.classList.add('danger');
+    else if (timeLeft <= 30) display.classList.add('warning');
+}
+
+function handleTimeout() {
+    if (answered) return;
+    answered = true;
+    streak = 0;
+    document.getElementById('live-streak').textContent = streak;
+    results.push({ correct: false, timeout: true });
+    updateDot(currentQuestion, 'answered-timeout');
+
+    // Highlight correct answer
+    const opts = document.querySelectorAll('.quiz-option');
+    opts.forEach(opt => opt.classList.add('locked'));
+    opts[questions[currentQuestion].correct].classList.add('correct');
+
+    showFeedback('timeout', '⏰ TIME\'S UP! Mission clock expired.');
+    showExplanation();
+    document.getElementById('next-btn').classList.remove('hidden');
+}
+
+// ===== RENDER QUESTION =====
+function renderQuestion() {
+    const q = questions[currentQuestion];
+    answered = false;
+
+    document.getElementById('q-num-label').textContent = String(currentQuestion + 1).padStart(2, '0');
+    document.getElementById('current-q-num').textContent = currentQuestion + 1;
+    document.getElementById('q-category').textContent = q.category;
+    document.getElementById('q-difficulty').textContent = q.difficulty;
+    document.getElementById('question-text').textContent = q.q;
+
+    const container = document.getElementById('options-container');
+    container.innerHTML = '';
+    const letters = ['A', 'B', 'C', 'D'];
+    q.opts.forEach((opt, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'quiz-option btn-ripple';
+        btn.innerHTML = `<span class="opt-letter">${letters[i]}</span><span>${opt}</span>`;
+        btn.addEventListener('click', () => selectAnswer(i, btn));
+        btn.addEventListener('click', function(e) {
+            const ripple = document.createElement('span');
+            const rect = this.getBoundingClientRect();
+            ripple.className = 'ripple';
+            ripple.style.cssText = `width:${Math.max(rect.width,rect.height)*2}px;height:${Math.max(rect.width,rect.height)*2}px;left:${e.clientX-rect.left-Math.max(rect.width,rect.height)}px;top:${e.clientY-rect.top-Math.max(rect.width,rect.height)}px;`;
+            this.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 700);
+        });
+        container.appendChild(btn);
+    });
+
+    // Reset UI
+    hideFeedback();
+    document.getElementById('explanation-box').classList.add('hidden');
+    document.getElementById('next-btn').classList.add('hidden');
+
+    // Progress fill
+    const pct = (currentQuestion / questions.length) * 100;
+    document.getElementById('q-progress-fill').style.width = pct + '%';
+
+    // Update dots
+    if (currentQuestion > 0) {
+        document.getElementById(`qdot-${currentQuestion - 1}`)?.classList.remove('current');
+    }
+    updateDot(currentQuestion, 'current');
+
+    startTimer();
+
+    // Animate card
+    document.getElementById('question-screen').style.animation = 'none';
+    void document.getElementById('question-screen').offsetWidth;
+    document.getElementById('question-screen').style.animation = '';
+}
+
+// ===== SELECT ANSWER =====
+function selectAnswer(index, btn) {
+    if (answered) return;
+    answered = true;
+    clearInterval(timerInterval);
+
+    const q = questions[currentQuestion];
+    const opts = document.querySelectorAll('.quiz-option');
+    opts.forEach(o => o.classList.add('locked'));
+
+    const timeBonus = Math.floor((timeLeft / 120) * 50); // Up to 50 bonus points for speed
+
+    if (index === q.correct) {
+        btn.classList.add('correct');
+        streak++;
+        bestStreak = Math.max(bestStreak, streak);
+        const streakBonus = Math.min(streak - 1, 4) * 10; // up to 40 bonus for streak
+        const points = 100 + timeBonus + streakBonus;
+        score += points;
+        results.push({ correct: true, timeout: false, points });
+        updateDot(currentQuestion, 'answered-correct');
+        showFeedback('correct', `✅ CORRECT! +${points} PTS ${streak > 1 ? `(🔥 ${streak}x Streak!)` : ''}`);
+    } else {
+        btn.classList.add('wrong');
+        opts[q.correct].classList.add('correct');
+        streak = 0;
+        results.push({ correct: false, timeout: false, points: 0 });
+        updateDot(currentQuestion, 'answered-wrong');
+        showFeedback('wrong', `❌ INCORRECT! Correct: ${['A','B','C','D'][q.correct]}`);
+    }
+
+    document.getElementById('live-score').textContent = score;
+    document.getElementById('live-streak').textContent = streak;
+
+    showExplanation();
+    document.getElementById('next-btn').classList.remove('hidden');
+}
+
+// ===== NEXT QUESTION =====
+function nextQuestion() {
+    currentQuestion++;
+    if (currentQuestion >= questions.length) {
+        showResult();
+    } else {
+        renderQuestion();
+    }
+}
+
+// ===== DOT UPDATE =====
+function updateDot(index, cls) {
+    const dot = document.getElementById(`qdot-${index}`);
+    if (!dot) return;
+    dot.className = 'q-dot ' + cls;
+}
+
+// ===== FEEDBACK =====
+function showFeedback(type, msg) {
+    const badge = document.getElementById('feedback-badge');
+    badge.textContent = msg;
+    badge.className = `feedback-badge show ${type}`;
+}
+function hideFeedback() {
+    document.getElementById('feedback-badge').className = 'feedback-badge';
+}
+
+// ===== EXPLANATION =====
+function showExplanation() {
+    const q = questions[currentQuestion];
+    document.getElementById('explanation-text').textContent = q.explanation;
+    document.getElementById('explanation-box').classList.remove('hidden');
+}
+
+// ===== START =====
+function startQuiz() {
+    quizStarted = true;
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('question-screen').classList.remove('hidden');
+    initDots();
+    renderQuestion();
+}
+
+// ===== RESULT =====
+function showResult() {
+    clearInterval(timerInterval);
+    document.getElementById('question-screen').classList.add('hidden');
+    document.getElementById('result-screen').classList.remove('hidden');
+
+    // Update progress to 100%
+    document.getElementById('q-progress-fill').style.width = '100%';
+    document.getElementById('current-q-num').textContent = questions.length;
+
+    const correct = results.filter(r => r.correct).length;
+    const wrong = results.filter(r => !r.correct && !r.timeout).length;
+    const timeout = results.filter(r => r.timeout).length;
+    const pct = Math.round((score / 1000) * 100);
+
+    // Animate score
+    let displayScore = 0;
+    const scoreEl = document.getElementById('final-score-display');
+    const scoreAnim = setInterval(() => {
+        displayScore += Math.ceil((score - displayScore) / 8);
+        if (displayScore >= score) { displayScore = score; clearInterval(scoreAnim); }
+        scoreEl.textContent = displayScore;
+    }, 40);
+
+    // Rank
+    let rank, rankColor, title, subtitle;
+    if (score >= 900) { rank = '🏆 LEGEND'; rankColor = 'background:rgba(255,184,0,0.15);border:2px solid #FFB800;color:#FFB800;'; title = 'LEGENDARY SURVIVOR'; subtitle = 'Unmatched. You were born for the Threshold.'; }
+    else if (score >= 750) { rank = '⚡ ELITE'; rankColor = 'background:rgba(0,229,255,0.15);border:2px solid #00E5FF;color:#00E5FF;'; title = 'ELITE AGENT'; subtitle = 'Outstanding performance under pressure.'; }
+    else if (score >= 550) { rank = '🛡️ VETERAN'; rankColor = 'background:rgba(0,255,136,0.15);border:2px solid #00FF88;color:#00FF88;'; title = 'SEASONED VETERAN'; subtitle = 'You know your way around the Threshold.'; }
+    else if (score >= 350) { rank = '⚔️ RECRUIT'; rankColor = 'background:rgba(138,150,168,0.15);border:2px solid #8A96A8;color:#8A96A8;'; title = 'THRESHOLD RECRUIT'; subtitle = 'Promising. Train harder, agent.'; }
+    else { rank = '💀 ELIMINATED'; rankColor = 'background:rgba(255,61,113,0.15);border:2px solid #FF3D71;color:#FF3D71;'; title = 'MISSION FAILED'; subtitle = 'The Threshold consumed you. Try again.'; }
+
+    const rankBadge = document.getElementById('rank-badge');
+    rankBadge.textContent = rank;
+    rankBadge.style.cssText = rankColor;
+    document.getElementById('result-title').textContent = title;
+    document.getElementById('result-subtitle').textContent = subtitle;
+
+    document.getElementById('stat-correct').textContent = correct;
+    document.getElementById('stat-wrong').textContent = wrong;
+    document.getElementById('stat-timeout').textContent = timeout;
+    document.getElementById('stat-streak').textContent = bestStreak;
+
+    // Breakdown
+    const breakdownList = document.getElementById('breakdown-list');
+    breakdownList.innerHTML = '';
+    questions.forEach((q, i) => {
+        const r = results[i] || { correct: false, timeout: true };
+        const icon = r.correct ? '✅' : r.timeout ? '⏰' : '❌';
+        const color = r.correct ? 'text-neon-cyan' : r.timeout ? 'text-neon-amber' : 'text-neon-red';
+        const pts = r.correct ? `+${r.points}` : '+0';
+        breakdownList.innerHTML += `
+            <div class="flex items-start gap-3 bg-surface-dark rounded-xl p-3 border border-surface-dark">
+                <span class="text-xl">${icon}</span>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm text-text-primary font-medium leading-snug truncate">${q.q.substring(0,80)}…</p>
+                    <p class="font-mono text-xs text-text-secondary mt-1">${q.category} • ${q.difficulty}</p>
+                </div>
+                <span class="font-heading font-bold text-sm ${color} flex-shrink-0">${pts}</span>
+            </div>
+        `;
+    });
+}
+
+// ===== RESTART =====
+function restartQuiz() {
+    currentQuestion = 0;
+    score = 0;
+    streak = 0;
+    bestStreak = 0;
+    results = [];
+    answered = false;
+    clearInterval(timerInterval);
+
+    document.getElementById('live-score').textContent = 0;
+    document.getElementById('live-streak').textContent = 0;
+    document.getElementById('result-screen').classList.add('hidden');
+    document.getElementById('question-screen').classList.remove('hidden');
+
+    initDots();
+    renderQuestion();
+}
+</script>
+</body>
+</html>

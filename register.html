@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register — THE THRESHOLD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-dark': '#04070F',
+                        'secondary-dark': '#0A0E1A',
+                        'surface-dark': '#141B2D',
+                        'neon-cyan': '#00E5FF',
+                        'neon-red': '#FF3D71',
+                        'neon-amber': '#FFB800',
+                        'text-primary': '#E8EDF4',
+                        'text-secondary': '#8A96A8',
+                    },
+                    fontFamily: {
+                        'heading': ['Orbitron', 'sans-serif'],
+                        'body': ['Inter', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --cyan: #00E5FF; --red: #FF3D71; --amber: #FFB800; }
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        #particle-canvas { position: fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0; }
+
+        body::after {
+            content: ''; position: fixed; inset: 0;
+            background: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,229,255,0.01) 3px,rgba(0,229,255,0.01) 4px);
+            pointer-events: none; z-index: 9998;
+        }
+
+        .neon-glow { animation: neonPulse 2.5s ease-in-out infinite; }
+        @keyframes neonPulse { 0%,100%{text-shadow:0 0 5px var(--cyan),0 0 20px var(--cyan)} 50%{text-shadow:0 0 10px var(--cyan),0 0 40px var(--cyan),0 0 80px var(--cyan)} }
+
+        /* Step indicator */
+        .step-indicator { position: relative; }
+        .step-dot { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #141B2D; background: #0A0E1A; display: flex; align-items: center; justify-content: center; font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 700; color: #8A96A8; transition: all 0.4s; cursor: default; position: relative; z-index: 1; }
+        .step-dot.active { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 20px rgba(0,229,255,0.4); }
+        .step-dot.completed { background: var(--cyan); border-color: var(--cyan); color: #04070F; }
+        .step-line { flex: 1; height: 2px; background: #141B2D; transition: background 0.4s; }
+        .step-line.completed { background: var(--cyan); }
+
+        /* Form inputs */
+        .form-input {
+            width: 100%; padding: 14px 18px; background: #0A0E1A;
+            border: 2px solid #141B2D; border-radius: 8px;
+            color: #E8EDF4; font-family: 'Inter', sans-serif; font-size: 15px;
+            transition: all 0.3s; outline: none;
+        }
+        .form-input:focus { border-color: var(--cyan); box-shadow: 0 0 20px rgba(0,229,255,0.12); }
+        .form-input:valid:not(:placeholder-shown) { border-color: rgba(0,229,255,0.4); }
+        .form-input.error { border-color: var(--red); box-shadow: 0 0 10px rgba(255,61,113,0.2); animation: shake 0.4s; }
+        .form-input::placeholder { color: #4a5568; }
+
+        @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)} }
+
+        .form-label { display: block; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--cyan); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
+
+        /* Select */
+        select.form-input { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2300E5FF' stroke-width='2' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; }
+        select.form-input option { background: #0A0E1A; }
+
+        /* Radio / checkbox */
+        .challenge-option { cursor: pointer; }
+        .challenge-option input { display: none; }
+        .challenge-option .option-box {
+            border: 2px solid #141B2D; border-radius: 10px; padding: 16px;
+            transition: all 0.3s; background: #0A0E1A;
+        }
+        .challenge-option input:checked + .option-box {
+            border-color: var(--cyan); background: rgba(0,229,255,0.06);
+            box-shadow: 0 0 20px rgba(0,229,255,0.15);
+        }
+        .challenge-option:hover .option-box { border-color: rgba(0,229,255,0.4); }
+
+        /* Buttons */
+        .btn-primary { padding: 14px 32px; background: var(--cyan); color: #04070F; font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 700; border-radius: 8px; cursor: pointer; border: none; transition: all 0.3s; letter-spacing: 1px; }
+        .btn-primary:hover { background: var(--amber); transform: scale(1.03); box-shadow: 0 0 30px rgba(0,229,255,0.4); }
+        .btn-outline { padding: 14px 32px; background: transparent; color: var(--cyan); font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 700; border: 2px solid var(--cyan); border-radius: 8px; cursor: pointer; transition: all 0.3s; letter-spacing: 1px; }
+        .btn-outline:hover { background: rgba(0,229,255,0.1); }
+
+        /* Slide panels */
+        .form-step { display: none; animation: slideInRight 0.4s ease; }
+        .form-step.active { display: block; }
+        @keyframes slideInRight { from{opacity:0;transform:translateX(30px)} to{opacity:1;transform:translateX(0)} }
+
+        /* Team members */
+        .member-card { background: #0A0E1A; border: 2px solid #141B2D; border-radius: 10px; padding: 16px; transition: border-color 0.3s; }
+        .member-card:hover { border-color: rgba(0,229,255,0.3); }
+
+        /* Password strength */
+        .strength-bar { height: 4px; border-radius: 2px; background: #141B2D; overflow: hidden; }
+        .strength-fill { height: 100%; width: 0; border-radius: 2px; transition: all 0.4s; }
+
+        /* Success screen */
+        .success-screen { display: none; text-align: center; padding: 60px 20px; }
+        .success-screen.show { display: block; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+        .success-icon { font-size: 80px; animation: bounceIn 0.6s cubic-bezier(0.175,0.885,0.32,1.275); }
+        @keyframes bounceIn { from{transform:scale(0)} 70%{transform:scale(1.15)} to{transform:scale(1)} }
+
+        /* Ripple */
+        .btn-ripple { position: relative; overflow: hidden; }
+        .ripple { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.3); transform: scale(0); animation: rippleAnim 0.6s ease-out; pointer-events: none; }
+        @keyframes rippleAnim { to{transform:scale(4);opacity:0} }
+
+        /* Hex bg */
+        .hex-bg { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='115'%3E%3Cpolygon points='50,5 95,27.5 95,72.5 50,95 5,72.5 5,27.5' fill='none' stroke='%2300E5FF' stroke-width='0.4' opacity='0.06'/%3E%3C/svg%3E"); }
+
+        /* Progress */
+        #progress-bar { position:fixed; top:0; left:0; height:3px; background:linear-gradient(90deg,var(--cyan),var(--amber)); z-index:10001; width:100%; }
+
+        ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:#04070F} ::-webkit-scrollbar-thumb{background:var(--cyan);border-radius:3px}
+
+        /* Theme Toggle */
+        .theme-toggle {
+            width: 52px; height: 28px;
+            border-radius: 99px;
+            background: #141B2D;
+            border: 2px solid var(--cyan);
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+            flex-shrink: 0;
+        }
+        .theme-toggle-knob {
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            background: var(--cyan);
+            position: absolute;
+            top: 3px; left: 3px;
+            transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+            box-shadow: 0 0 8px var(--cyan);
+        }
+        body.light-mode { background-color: #F0F4FF !important; color: #0A0E1A !important; }
+        body.light-mode .bg-secondary-dark, body.light-mode header { background-color: rgba(220,228,248,0.95) !important; }
+        body.light-mode .text-text-secondary { color: #2A3A5A !important; }
+        body.light-mode .text-text-primary { color: #0A0E1A !important; }
+        body.light-mode .form-input { background: #C8D4EE; border-color: #9AAAD0; color: #0A0E1A; }
+        body.light-mode .member-card { background: #C8D4EE; border-color: #9AAAD0; }
+        body.light-mode .option-box { background: #C8D4EE; }
+        body.light-mode .bg-surface-dark { background-color: #C8D4EE !important; }
+        body.light-mode .theme-toggle { background: var(--cyan); }
+        body.light-mode .theme-toggle-knob { transform: translateX(24px); background: #04070F; }
+
+        /* Tooltip */
+        .tooltip { position: relative; }
+        .tooltip-text { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: #141B2D; color: var(--cyan); font-size: 11px; padding: 6px 10px; border-radius: 6px; border: 1px solid rgba(0,229,255,0.3); white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; font-family: 'JetBrains Mono', monospace; }
+        .tooltip:hover .tooltip-text { opacity: 1; }
+
+        /* Loading spinner */
+        .spinner { width: 24px; height: 24px; border: 3px solid rgba(0,229,255,0.2); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+        @keyframes spin { to{transform:rotate(360deg)} }
+    </style>
+</head>
+<body class="bg-primary-dark text-text-primary font-body antialiased min-h-screen">
+
+<div id="progress-bar"></div>
+<canvas id="particle-canvas"></canvas>
+
+<!-- NAV -->
+<header class="fixed top-0 left-0 right-0 z-50 bg-secondary-dark/95 backdrop-blur-md border-b border-surface-dark">
+    <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-20">
+            <a href="index.html" class="text-2xl font-heading font-black text-neon-cyan tracking-wider hover:text-neon-amber transition-colors neon-glow">THE THRESHOLD</a>
+            <div class="flex items-center gap-4">
+                <a href="quiz.html" class="text-text-secondary hover:text-neon-cyan transition-colors font-mono text-sm hidden sm:block">⚡ Quiz</a>
+                <a href="index.html" class="text-text-secondary hover:text-neon-cyan transition-colors font-mono text-sm">← Home</a>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-text-secondary font-mono hidden sm:block" id="theme-label">🌙</span>
+                    <div class="theme-toggle" id="theme-toggle">
+                        <div class="theme-toggle-knob"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+</header>
+
+<main class="relative z-10 pt-20 min-h-screen hex-bg">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-16 max-w-3xl">
+
+        <!-- Header -->
+        <div class="text-center mb-12">
+            <div class="font-mono text-neon-cyan text-xs tracking-widest uppercase mb-4">[ REGISTRATION PORTAL ]</div>
+            <h1 class="text-4xl md:text-5xl font-heading font-black mb-4">
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-amber">ENTER THE THRESHOLD</span>
+            </h1>
+            <p class="text-text-secondary">Complete all steps to register your team. Prize pool: <strong class="text-neon-cyan">$10,000</strong></p>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="flex items-center mb-12 px-4" id="step-indicator">
+            <div class="step-dot active" id="dot-1">1</div>
+            <div class="step-line" id="line-1"></div>
+            <div class="step-dot" id="dot-2">2</div>
+            <div class="step-line" id="line-2"></div>
+            <div class="step-dot" id="dot-3">3</div>
+            <div class="step-line" id="line-3"></div>
+            <div class="step-dot" id="dot-4">4</div>
+        </div>
+        <div class="flex justify-between font-mono text-xs text-text-secondary mb-10 px-2">
+            <span>Account</span><span>Team Info</span><span>Challenges</span><span>Confirm</span>
+        </div>
+
+        <!-- FORM CONTAINER -->
+        <div class="bg-secondary-dark rounded-2xl border border-surface-dark p-6 md:p-10" style="box-shadow:0 0 60px rgba(0,229,255,0.07)">
+
+            <!-- STEP 1: Account -->
+            <div class="form-step active" id="step-1">
+                <h2 class="text-2xl font-heading font-bold text-neon-cyan mb-8">Account Details</h2>
+                <div class="space-y-6">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="form-label">First Name</label>
+                            <input class="form-input" id="firstName" type="text" placeholder="John" required>
+                        </div>
+                        <div>
+                            <label class="form-label">Last Name</label>
+                            <input class="form-input" id="lastName" type="text" placeholder="Doe" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label">Email Address</label>
+                        <input class="form-input" id="email" type="email" placeholder="john.doe@university.edu" required>
+                    </div>
+                    <div>
+                        <label class="form-label">Password</label>
+                        <div class="relative">
+                            <input class="form-input pr-12" id="password" type="password" placeholder="Min 8 characters" required>
+                            <button type="button" class="absolute right-4 top-1/2 -translate-y-1/2 text-text-secondary hover:text-neon-cyan transition-colors" id="toggle-password">👁️</button>
+                        </div>
+                        <div class="mt-2 space-y-1">
+                            <div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div>
+                            <p class="font-mono text-xs text-text-secondary" id="strength-label">Password strength</p>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label">Confirm Password</label>
+                        <input class="form-input" id="confirmPassword" type="password" placeholder="Repeat password" required>
+                    </div>
+                    <div>
+                        <label class="form-label">University / College</label>
+                        <input class="form-input" id="university" type="text" placeholder="e.g. MIT, Stanford, IIT Bombay" required>
+                    </div>
+                    <div>
+                        <label class="form-label">Phone Number</label>
+                        <input class="form-input" id="phone" type="tel" placeholder="+1 (555) 000-0000" required>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <input type="checkbox" id="terms-check" class="mt-1 accent-cyan-400 w-4 h-4 cursor-pointer">
+                        <label for="terms-check" class="text-sm text-text-secondary cursor-pointer">
+                            I agree to the <a href="#" class="text-neon-cyan hover:underline">Terms of Service</a> and <a href="#" class="text-neon-cyan hover:underline">Liability Waiver</a>. I confirm I am 18 years or older.
+                        </label>
+                    </div>
+                </div>
+                <div class="flex justify-end mt-10">
+                    <button class="btn-primary btn-ripple" onclick="goToStep(2)">Next: Team Info →</button>
+                </div>
+            </div>
+
+            <!-- STEP 2: Team Info -->
+            <div class="form-step" id="step-2">
+                <h2 class="text-2xl font-heading font-bold text-neon-cyan mb-8">Team Information</h2>
+                <div class="space-y-6">
+                    <div>
+                        <label class="form-label">Team Name</label>
+                        <input class="form-input" id="teamName" type="text" placeholder="e.g. GHOST PROTOCOL" required maxlength="30">
+                        <p class="font-mono text-xs text-text-secondary mt-1">Max 30 characters. No spaces at start/end.</p>
+                    </div>
+                    <div>
+                        <label class="form-label">Team Size</label>
+                        <select class="form-input" id="teamSize" onchange="updateMemberFields()">
+                            <option value="">Select team size</option>
+                            <option value="2">2 Members</option>
+                            <option value="3">3 Members</option>
+                            <option value="4">4 Members</option>
+                        </select>
+                    </div>
+
+                    <!-- Dynamic member fields -->
+                    <div id="member-fields" class="space-y-4 hidden">
+                        <label class="form-label">Team Members</label>
+                        <div class="member-card">
+                            <p class="font-mono text-xs text-neon-cyan mb-3">MEMBER 1 (Team Leader — You)</p>
+                            <input class="form-input" type="text" placeholder="Your name (auto-filled)" id="leader-name" readonly style="opacity:0.6">
+                        </div>
+                        <div id="extra-members"></div>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Student ID / Roll Number</label>
+                        <input class="form-input" id="studentId" type="text" placeholder="e.g. 2023CS1042" required>
+                    </div>
+                    <div>
+                        <label class="form-label">Year of Study</label>
+                        <select class="form-input" id="yearStudy">
+                            <option value="">Select year</option>
+                            <option value="1">1st Year</option>
+                            <option value="2">2nd Year</option>
+                            <option value="3">3rd Year</option>
+                            <option value="4">4th Year</option>
+                            <option value="pg">Post Graduate</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-between mt-10">
+                    <button class="btn-outline btn-ripple" onclick="goToStep(1)">← Back</button>
+                    <button class="btn-primary btn-ripple" onclick="goToStep(3)">Next: Challenges →</button>
+                </div>
+            </div>
+
+            <!-- STEP 3: Challenges -->
+            <div class="form-step" id="step-3">
+                <h2 class="text-2xl font-heading font-bold text-neon-cyan mb-3">Select Challenges</h2>
+                <p class="text-text-secondary text-sm mb-8">Choose which challenge tracks you want to participate in. You must select at least 1.</p>
+                <div class="grid sm:grid-cols-2 gap-4">
+                    <label class="challenge-option">
+                        <input type="checkbox" name="challenge" value="cryogenic" id="ch-cryo">
+                        <div class="option-box">
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="text-3xl">🧊</span>
+                                <div>
+                                    <p class="font-heading font-bold text-neon-cyan text-sm">CRYOGENIC ESCAPE</p>
+                                    <p class="font-mono text-xs text-neon-amber">HIGH DIFFICULTY</p>
+                                </div>
+                            </div>
+                            <p class="text-xs text-text-secondary">Solve ice chamber puzzles under time pressure</p>
+                        </div>
+                    </label>
+                    <label class="challenge-option">
+                        <input type="checkbox" name="challenge" value="pressure" id="ch-pressure">
+                        <div class="option-box">
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="text-3xl">🌊</span>
+                                <div>
+                                    <p class="font-heading font-bold text-neon-red text-sm">PRESSURE DROP</p>
+                                    <p class="font-mono text-xs text-neon-red">EXTREME DIFFICULTY</p>
+                                </div>
+                            </div>
+                            <p class="text-xs text-text-secondary">Navigate a flooding environment against the clock</p>
+                        </div>
+                    </label>
+                    <label class="challenge-option">
+                        <input type="checkbox" name="challenge" value="blackout" id="ch-blackout">
+                        <div class="option-box">
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="text-3xl">🕶️</span>
+                                <div>
+                                    <p class="font-heading font-bold text-neon-amber text-sm">BLACKOUT PROTOCOL</p>
+                                    <p class="font-mono text-xs text-neon-amber">MEDIUM DIFFICULTY</p>
+                                </div>
+                            </div>
+                            <p class="text-xs text-text-secondary">Survive a maze in complete darkness</p>
+                        </div>
+                    </label>
+                    <label class="challenge-option">
+                        <input type="checkbox" name="challenge" value="fracture" id="ch-fracture">
+                        <div class="option-box">
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="text-3xl">⚡</span>
+                                <div>
+                                    <p class="font-heading font-bold text-neon-cyan text-sm">FRACTURE ZONE</p>
+                                    <p class="font-mono text-xs text-neon-red">HIGH DIFFICULTY</p>
+                                </div>
+                            </div>
+                            <p class="text-xs text-text-secondary">Platforms collapse randomly — stay alive</p>
+                        </div>
+                    </label>
+                </div>
+                <div class="mt-8">
+                    <label class="form-label">Any special requirements or notes? (optional)</label>
+                    <textarea class="form-input h-28 resize-none" id="notes" placeholder="Medical conditions, accessibility needs, dietary requirements..."></textarea>
+                </div>
+                <div class="flex justify-between mt-10">
+                    <button class="btn-outline btn-ripple" onclick="goToStep(2)">← Back</button>
+                    <button class="btn-primary btn-ripple" onclick="goToStep(4)">Next: Confirm →</button>
+                </div>
+            </div>
+
+            <!-- STEP 4: Confirm -->
+            <div class="form-step" id="step-4">
+                <h2 class="text-2xl font-heading font-bold text-neon-cyan mb-8">Review & Submit</h2>
+                <div class="space-y-6" id="review-content">
+                    <!-- Populated by JS -->
+                </div>
+                <div class="mt-8 p-5 bg-surface-dark rounded-xl border border-neon-cyan/20">
+                    <p class="font-mono text-xs text-neon-amber uppercase tracking-widest mb-2">⚠ FINAL CONFIRMATION</p>
+                    <p class="text-sm text-text-secondary">By submitting you confirm all details are accurate. Registration fee: <strong class="text-neon-cyan">FREE</strong>. You will receive a confirmation email within 24 hours.</p>
+                </div>
+                <div class="flex justify-between mt-10">
+                    <button class="btn-outline btn-ripple" onclick="goToStep(3)">← Back</button>
+                    <button class="btn-primary btn-ripple" id="submit-btn" onclick="submitForm()">
+                        <span id="submit-label">SUBMIT REGISTRATION ✓</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- SUCCESS -->
+            <div class="success-screen" id="success-screen">
+                <div class="success-icon mb-6">🏆</div>
+                <h2 class="text-3xl font-heading font-bold text-neon-cyan mb-4">REGISTRATION COMPLETE!</h2>
+                <p class="text-text-secondary mb-3">Welcome to THE THRESHOLD, <strong class="text-text-primary" id="success-name"></strong>!</p>
+                <p class="text-text-secondary mb-8 text-sm">Your team has been registered. Confirmation sent to <strong class="text-neon-cyan" id="success-email"></strong>.</p>
+                <div class="inline-block bg-surface-dark rounded-xl p-6 mb-8 border border-neon-cyan/30 text-left">
+                    <p class="font-mono text-xs text-neon-cyan uppercase tracking-widest mb-3">Registration ID</p>
+                    <p class="text-2xl font-heading font-black text-neon-amber" id="reg-id"></p>
+                </div>
+                <br>
+                <a href="index.html" class="btn-primary btn-ripple inline-block">← Back to Home</a>
+            </div>
+
+        </div>
+    </div>
+</main>
+
+<script>
+// ===== PARTICLES (same as main) =====
+(function() {
+    const canvas = document.getElementById('particle-canvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    function resize() { canvas.width = innerWidth; canvas.height = innerHeight; }
+    resize();
+    window.addEventListener('resize', resize);
+    for (let i = 0; i < 60; i++) {
+        particles.push({ x: Math.random()*innerWidth, y: Math.random()*innerHeight, vx:(Math.random()-0.5)*0.4, vy:(Math.random()-0.5)*0.4, size:Math.random()*1.5+0.5, alpha:Math.random()*0.4+0.1, color:Math.random()>0.7?'255,184,0':Math.random()>0.5?'255,61,113':'0,229,255' });
+    }
+    function animate() {
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        particles.forEach(p => {
+            p.x += p.vx; p.y += p.vy;
+            if(p.x<0)p.x=canvas.width; if(p.x>canvas.width)p.x=0;
+            if(p.y<0)p.y=canvas.height; if(p.y>canvas.height)p.y=0;
+            ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+            ctx.fillStyle=`rgba(${p.color},${p.alpha})`; ctx.fill();
+        });
+        requestAnimationFrame(animate);
+    }
+    animate();
+})();
+
+// ===== RIPPLE =====
+document.querySelectorAll('.btn-ripple').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        const r = document.createElement('span');
+        r.className = 'ripple';
+        const rect = this.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        r.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px`;
+        this.appendChild(r);
+        setTimeout(()=>r.remove(), 700);
+    });
+});
+
+// ===== PASSWORD TOGGLE =====
+document.getElementById('toggle-password').addEventListener('click', function() {
+    const pw = document.getElementById('password');
+    pw.type = pw.type === 'password' ? 'text' : 'password';
+    this.textContent = pw.type === 'password' ? '👁️' : '🙈';
+});
+
+// ===== PASSWORD STRENGTH =====
+document.getElementById('password').addEventListener('input', function() {
+    const v = this.value;
+    let score = 0;
+    if(v.length >= 8) score++;
+    if(/[A-Z]/.test(v)) score++;
+    if(/[0-9]/.test(v)) score++;
+    if(/[^A-Za-z0-9]/.test(v)) score++;
+    const fill = document.getElementById('strength-fill');
+    const label = document.getElementById('strength-label');
+    const configs = [
+        {w:'0%',c:'',l:'Password strength'},
+        {w:'25%',c:'#FF3D71',l:'Weak'},
+        {w:'50%',c:'#FFB800',l:'Fair'},
+        {w:'75%',c:'#00E5FF',l:'Strong'},
+        {w:'100%',c:'#00FF88',l:'Very Strong ✓'}
+    ];
+    const s = configs[score];
+    fill.style.width = s.w; fill.style.background = s.c;
+    label.textContent = s.l; label.style.color = s.c || '#8A96A8';
+});
+
+// ===== STEP NAV =====
+let currentStep = 1;
+
+function goToStep(step) {
+    if(step > currentStep && !validateStep(currentStep)) return;
+    document.getElementById(`step-${currentStep}`).classList.remove('active');
+    document.getElementById(`dot-${currentStep}`).classList.remove('active');
+    document.getElementById(`dot-${currentStep}`).classList.add('completed');
+    document.getElementById(`dot-${currentStep}`).innerHTML = '✓';
+    if(step < currentStep) {
+        for(let i=step; i<=currentStep; i++) {
+            const dot = document.getElementById(`dot-${i}`);
+            dot.classList.remove('completed');
+            dot.innerHTML = i;
+            if(i>1) document.getElementById(`line-${i-1}`).classList.remove('completed');
+        }
+        document.getElementById(`dot-${step}`).classList.add('active');
+        document.getElementById(`dot-${step}`).innerHTML = step;
+    }
+    if(step > currentStep) {
+        document.getElementById(`line-${currentStep}`).classList.add('completed');
+        document.getElementById(`dot-${step}`).classList.add('active');
+    }
+    currentStep = step;
+    document.getElementById(`step-${currentStep}`).classList.add('active');
+    if(step === 4) populateReview();
+    window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function validateStep(step) {
+    let valid = true;
+    if(step === 1) {
+        ['firstName','lastName','email','password','confirmPassword','university','phone'].forEach(id => {
+            const el = document.getElementById(id);
+            if(!el.value.trim()) { el.classList.add('error'); setTimeout(()=>el.classList.remove('error'),1000); valid=false; }
+        });
+        const pw = document.getElementById('password').value;
+        const cpw = document.getElementById('confirmPassword').value;
+        if(pw !== cpw) {
+            document.getElementById('confirmPassword').classList.add('error');
+            setTimeout(()=>document.getElementById('confirmPassword').classList.remove('error'),1000);
+            valid = false;
+        }
+        if(!document.getElementById('terms-check').checked) { alert('Please accept the Terms of Service.'); valid=false; }
+    }
+    if(step === 2) {
+        ['teamName','teamSize','studentId'].forEach(id => {
+            const el = document.getElementById(id);
+            if(!el.value.trim()) { el.classList.add('error'); setTimeout(()=>el.classList.remove('error'),1000); valid=false; }
+        });
+    }
+    if(step === 3) {
+        const checked = document.querySelectorAll('input[name="challenge"]:checked');
+        if(checked.length === 0) { alert('Please select at least one challenge.'); valid=false; }
+    }
+    return valid;
+}
+
+function updateMemberFields() {
+    const size = parseInt(document.getElementById('teamSize').value);
+    if(!size) return;
+    const container = document.getElementById('member-fields');
+    const extra = document.getElementById('extra-members');
+    container.classList.remove('hidden');
+    const fname = document.getElementById('firstName').value;
+    const lname = document.getElementById('lastName').value;
+    document.getElementById('leader-name').value = fname && lname ? `${fname} ${lname}` : 'Team Leader';
+    extra.innerHTML = '';
+    for(let i=2; i<=size; i++) {
+        extra.innerHTML += `
+            <div class="member-card">
+                <p class="font-mono text-xs text-neon-cyan mb-3">MEMBER ${i}</p>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <input class="form-input" type="text" placeholder="Full Name" id="member-${i}-name">
+                    <input class="form-input" type="email" placeholder="Email" id="member-${i}-email">
+                </div>
+            </div>`;
+    }
+}
+
+function populateReview() {
+    const challenges = [...document.querySelectorAll('input[name="challenge"]:checked')].map(c => c.value);
+    const challengeNames = { cryogenic:'🧊 Cryogenic Escape', pressure:'🌊 Pressure Drop', blackout:'🕶️ Blackout Protocol', fracture:'⚡ Fracture Zone' };
+    document.getElementById('review-content').innerHTML = `
+        <div class="grid md:grid-cols-2 gap-4">
+            <div class="bg-surface-dark p-5 rounded-xl border border-surface-dark">
+                <p class="font-mono text-xs text-neon-cyan uppercase tracking-widest mb-3">Account</p>
+                <p class="text-sm"><span class="text-text-secondary">Name: </span>${document.getElementById('firstName').value} ${document.getElementById('lastName').value}</p>
+                <p class="text-sm mt-1"><span class="text-text-secondary">Email: </span>${document.getElementById('email').value}</p>
+                <p class="text-sm mt-1"><span class="text-text-secondary">University: </span>${document.getElementById('university').value}</p>
+            </div>
+            <div class="bg-surface-dark p-5 rounded-xl border border-surface-dark">
+                <p class="font-mono text-xs text-neon-cyan uppercase tracking-widest mb-3">Team</p>
+                <p class="text-sm"><span class="text-text-secondary">Team Name: </span><strong class="text-neon-amber">${document.getElementById('teamName').value}</strong></p>
+                <p class="text-sm mt-1"><span class="text-text-secondary">Size: </span>${document.getElementById('teamSize').value} members</p>
+                <p class="text-sm mt-1"><span class="text-text-secondary">Student ID: </span>${document.getElementById('studentId').value}</p>
+            </div>
+        </div>
+        <div class="bg-surface-dark p-5 rounded-xl border border-surface-dark">
+            <p class="font-mono text-xs text-neon-cyan uppercase tracking-widest mb-3">Selected Challenges</p>
+            <div class="flex flex-wrap gap-2">${challenges.map(c=>`<span class="px-3 py-1 bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 rounded-full text-sm">${challengeNames[c]}</span>`).join('')}</div>
+        </div>
+    `;
+}
+
+function submitForm() {
+    const btn = document.getElementById('submit-btn');
+    const label = document.getElementById('submit-label');
+    label.innerHTML = '<span class="spinner mr-2"></span> Processing...';
+    btn.disabled = true;
+    setTimeout(() => {
+        document.getElementById('step-4').classList.remove('active');
+        const success = document.getElementById('success-screen');
+        success.classList.add('show');
+        document.getElementById('success-name').textContent = document.getElementById('firstName').value + ' ' + document.getElementById('lastName').value;
+        document.getElementById('success-email').textContent = document.getElementById('email').value;
+        document.getElementById('reg-id').textContent = 'TT-' + Math.random().toString(36).substring(2,8).toUpperCase() + '-2026';
+        // update all dots
+        [1,2,3,4].forEach(i => {
+            const dot = document.getElementById(`dot-${i}`);
+            dot.classList.remove('active');
+            dot.classList.add('completed');
+            dot.innerHTML = '✓';
+        });
+        [1,2,3].forEach(i => document.getElementById(`line-${i}`).classList.add('completed'));
+    }, 1800);
+}
+// ===== THEME TOGGLE =====
+(function() {
+    const toggle = document.getElementById('theme-toggle');
+    const label = document.getElementById('theme-label');
+    let dark = true;
+    toggle.addEventListener('click', () => {
+        dark = !dark;
+        document.body.classList.toggle('light-mode', !dark);
+        if(label) label.textContent = dark ? '🌙' : '☀️';
+    });
+})();
+</script>
